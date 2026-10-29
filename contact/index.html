@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101a1c'/%3E%3Cpath d='M8 21c3-4 5-4 8 0s5 4 8 0' stroke='%23d9c39a' stroke-width='2.2' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='11' r='3' fill='%23d9c39a'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="../css/style.css?v=202609272134" />
+  <link rel="stylesheet" href="../css/style.css?v=sb6" />
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://sablevillas.ae/"},{"@type":"ListItem","position":2,"name":"Contact","item":"https://sablevillas.ae/contact/"}]}</script>
 </head>
 <body class="page">
@@ -40,7 +40,6 @@
       <div class="wrap">
         <div>
           <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../">Home</a><span>/</span>Contact</nav>
-          <span class="eyebrow">Contact</span>
           <h1>Register your interest.</h1>
           <p class="lede">Tell us what you are looking for and the sales team will come back to you with floor plans, pricing and the launch timing.</p>
           <dl class="contact-details" style="margin-top:1.8rem">
@@ -90,8 +89,9 @@
     <div class="footer-grid">
       <div class="footer-brand">
         <a class="brand" href="../">Sable<em>Villas</em></a>
-        <p>Twelve lakefront villas at Jumeirah Islands, Dubai. Four to five bedrooms, private pools, handover Q4 2027.</p>
-        <p class="tagline">Quiet water. Few neighbours.</p>
+        <p>Twelve lakefront villas at Jumeirah Islands, Dubai, each with four or five bedrooms and a private pool.</p>
+        <a class="footer-email" href="mailto:sales@sablevillas.ae">sales@sablevillas.ae</a>
+        <!-- CONFIRM: phone number, sales gallery address and hours -->
       </div>
       <div class="footer-col">
         <h3>Explore</h3>
@@ -106,13 +106,11 @@
         <ul>
           <li><a href="../contact/">Contact</a></li>
           <li><a href="../legal/">Privacy &amp; terms</a></li>
-          <li><a href="mailto:sales@sablevillas.ae">sales@sablevillas.ae</a></li>
-          <!-- CONFIRM: phone number, sales gallery address and hours -->
         </ul>
       </div>
       <div class="footer-col footer-news">
         <h3>Be first to know</h3>
-        <p>Launch dates, floor plans and pricing, sent once and only when there is news.</p>
+        <p>Launch dates, floor plans and pricing for the villas, sent only when there is news.</p>
         <form class="news-form" novalidate="false">
           <label class="visually-hidden" for="news-email">Email</label>
           <input id="news-email" type="email" name="email" placeholder="Email address" required />
@@ -128,8 +126,8 @@
 </footer>
 
 
-  <script src="../js/config.js?v=202609272134"></script>
-  <script src="../js/site.js?v=202609272134"></script>
+  <script src="../js/config.js?v=sb6"></script>
+  <script src="../js/site.js?v=sb6"></script>
   <script>
     // ?role=broker preselects the role (linked from the home CTA band)
     (function () { var r = new URLSearchParams(location.search).get("role"), s = document.getElementById("role"); if (r && s) s.value = r; })();

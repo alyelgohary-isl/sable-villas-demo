@@ -11,8 +11,11 @@ const HEADER_H = 84;               // css px, keeps the card clear of the fixed 
    templates/film.config.js) so this engine never needs editing per site:
      FILM.sources  = { film: {dir, prefix, count}, backyard: {...}, ... }
      FILM.timeline = [ {id, units, src, f0, f1}, ... ]   frames indexed within src
-     FILM.overlay  = { enter: "clip6:0.12", leave: "glow:0.97" }   (optional)
+     FILM.overlay  = { enter: "clip6:0.12", leave: "glow:0.97", max: 0.9 }   (optional; max = darkest opacity)
      FILM.marquee  = { enter: "hold4:0.4",  leave: "hold5:0.9"  }   (optional)
+     FILM.stretch  = { from: "clip6:0.1", to: "clip6:0.4" }   (optional) the card grows to fill the viewport
+     FILM.after    = { src: "assets/img/x.webp", from: "glow:0.2", to: "glow:0.8", focus: [0.5, 0.5] }   (optional)
+                     a still the film fades into; focus is the point (0..1 of the image) its crop keeps in view
    Segment lengths are relative "units", normalised to 0..1 at load, so adding
    a clip never breaks the others. Text sections reference segments by id:
    data-seg="clip1:0.15,clip1:0.95". */
@@ -46,6 +49,8 @@ function at(ref) {
 
 const OVERLAY = FILM.overlay ? { enter: at(FILM.overlay.enter), leave: at(FILM.overlay.leave), max: FILM.overlay.max ?? 0.9, fade: 0.03 } : { enter: 2, leave: 2, max: 0, fade: 0.03 };
 const MARQUEE = FILM.marquee ? { enter: at(FILM.marquee.enter), leave: at(FILM.marquee.leave) } : { enter: 2, leave: 2 };
+const STRETCH = FILM.stretch ? { from: at(FILM.stretch.from), to: at(FILM.stretch.to) } : null;
+const AFTER = FILM.after ? { from: at(FILM.after.from), to: at(FILM.after.to), img: null } : null;
 
 /* ——— Lenis smooth scroll ——— */
 
@@ -100,6 +105,26 @@ function roundedPath(x, y, w, h, r) {
   ctx.closePath();
 }
 
+/* Stretch and fade-to-still, both 0..1 across their FILM ranges (smoothstep-eased) */
+const ramp = (p, r) => {
+  if (!r) return 0;
+  const t = gsap.utils.clamp(0, 1, (p - r.from) / (r.to - r.from));
+  return t * t * (3 - 2 * t);
+};
+let look = { stretch: 0, after: 0 };   // what the canvas shows; set from scroll progress
+const lerpRect = (a, b, t) => ({ dx: a.dx + (b.dx - a.dx) * t, dy: a.dy + (b.dy - a.dy) * t, dw: a.dw + (b.dw - a.dw) * t, dh: a.dh + (b.dh - a.dh) * t });
+// fills box (default: the canvas), cropping the overflow; focus [x, y] (0..1) says which part
+// of the image the crop leans toward, [0.5, 0.5] being the center
+function coverRect(w, h, box = { dx: 0, dy: 0, dw: canvas.width, dh: canvas.height }, focus = [0.5, 0.5]) {
+  const s = Math.max(box.dw / w, box.dh / h);
+  return { dx: box.dx + (box.dw - w * s) * focus[0], dy: box.dy + (box.dh - h * s) * focus[1], dw: w * s, dh: h * s };
+}
+if (AFTER) {
+  const still = new Image();
+  still.onload = () => { AFTER.img = still; if (look.after) drawFrame(currentFrame); };
+  still.src = FILM.after.src;
+}
+
 function drawFrame(index) {
   let img = frames[index];
   for (let k = index; !img && k >= 0; k--) img = frames[k];   // nearest frame already loaded
@@ -107,13 +132,22 @@ function drawFrame(index) {
   const cw = canvas.width, ch = canvas.height;
   ctx.fillStyle = GROUND;
   ctx.fillRect(0, 0, cw, ch);
-  const { dx, dy, dw, dh } = frameRect();
+  // the card grows from its place to the full viewport; the square film inside grows to cover it
+  const card = frameRect(), e = look.stretch;
+  const clip = lerpRect(card, { dx: 0, dy: 0, dw: cw, dh: ch }, e);
+  const pic = lerpRect(card, coverRect(img.width, img.height), e);
   ctx.save();
-  roundedPath(dx, dy, dw, dh, FRAME_RADIUS * dpr);
+  roundedPath(clip.dx, clip.dy, clip.dw, clip.dh, FRAME_RADIUS * dpr * (1 - e));
   ctx.clip();
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(img, dx, dy, dw, dh);
+  ctx.drawImage(img, pic.dx, pic.dy, pic.dw, pic.dh);
+  if (look.after && AFTER.img) {
+    // the still fills the card as it is now, so it can take over before the card grows
+    const r = coverRect(AFTER.img.width, AFTER.img.height, clip, FILM.after.focus);
+    ctx.globalAlpha = look.after;
+    ctx.drawImage(AFTER.img, r.dx, r.dy, r.dw, r.dh);
+  }
   ctx.restore();
 }
 
@@ -192,7 +226,11 @@ function buildTimeline(section) {
       tl.from(children, { x: 80, opacity: 0, stagger: 0.14, duration: 0.9, ease: "power3.out" });
       break;
     case "clip-reveal":
-      tl.from(children, { clipPath: "inset(0 0 100% 0)", y: 30, opacity: 0, stagger: 0.15, duration: 1.1, ease: "power4.inOut" });
+      // The window reaches past each box, so serif descenders (q, y, g) below the tight title
+      // line are never cut, and nothing snaps when the tween ends.
+      tl.fromTo(children,
+        { clipPath: "inset(-20% -5% 120% -5%)", y: 30, opacity: 0 },
+        { clipPath: "inset(-20% -5% -40% -5%)", y: 0, opacity: 1, stagger: 0.15, duration: 1.1, ease: "power4.inOut" });
       break;
     case "fade-up":
       tl.from(children, { y: 50, opacity: 0, stagger: 0.12, duration: 0.9, ease: "power3.out" });
@@ -224,11 +262,9 @@ const heroSection = document.querySelector(".hero-section");
 function playHeroIntro() {
   const words = heroSection.querySelectorAll(".hero-heading .word");
   gsap.timeline()
-    .from(".hero-section .eyebrow", { y: 14, opacity: 0, duration: 0.6, ease: "power3.out" })
-    .from(words, { yPercent: 115, duration: 1.1, stagger: 0.06, ease: "power4.out" }, "-=0.3")
+    .from(words, { yPercent: 115, duration: 1.1, stagger: 0.06, ease: "power4.out" })
     .from(".hero-tagline", { y: 26, opacity: 0, duration: 0.8, ease: "power3.out" }, "-=0.55")
-    .from(".hero-ctas .btn", { y: 20, opacity: 0, stagger: 0.09, duration: 0.7, ease: "power3.out" }, "-=0.5")
-    .from(".hero-section .badge-strip", { opacity: 0, duration: 0.7, ease: "power2.out" }, "-=0.3");
+    .from(".hero-ctas .btn", { y: 20, opacity: 0, stagger: 0.09, duration: 0.7, ease: "power3.out" }, "-=0.5");
 }
 
 function fireCounters(scope) {
@@ -251,8 +287,8 @@ function updateBand(p) {
     const st = sectionState.get(s);
     const inRange = p >= st.enter && p <= st.leave;
     if (s === heroSection) {
-      const h = SEG.hero;
-      const o = gsap.utils.clamp(0, 1, 1 - (p - (h.p0 + 0.12 * (h.p1 - h.p0))) / (0.65 * (h.p1 - h.p0)));
+      // fades out between its two data-seg points while the film is already playing
+      const o = gsap.utils.clamp(0, 1, 1 - (p - st.enter) / (st.leave - st.enter));
       s.style.opacity = o;
       s.classList.toggle("is-active", o > 0.01);
       return;
@@ -303,6 +339,7 @@ function updateMarquee(p) {
 /* ——— Master scroll binding ——— */
 
 const scrollContainer = document.getElementById("scroll-container");
+let filmProgress = 0;   // last progress through the film, to restore the overlay when scrolling back
 
 ScrollTrigger.create({
   trigger: scrollContainer,
@@ -311,9 +348,12 @@ ScrollTrigger.create({
   scrub: true,
   onUpdate(self) {
     const p = self.progress;
+    filmProgress = p;
     const index = progressToFrame(p);
-    if (index !== currentFrame) {
+    const next = { stretch: ramp(p, STRETCH), after: ramp(p, AFTER) };
+    if (index !== currentFrame || next.stretch !== look.stretch || next.after !== look.after) {
       currentFrame = index;
+      look = next;
       requestAnimationFrame(() => drawFrame(currentFrame));
     }
     updateBand(p);
@@ -322,17 +362,23 @@ ScrollTrigger.create({
   },
 });
 
-/* Hide the film once the page flow has covered it */
+/* Hide the film once the page flow has covered it: it slides up over the last frame,
+   so the film stays visible behind until the flow's top reaches the top of the screen */
 ScrollTrigger.create({
   trigger: ".page-flow",
-  start: "top 60%",
+  start: "top top",
   onEnter: () => {
     gsap.to(["#canvas-wrap", "#band", "#dark-overlay", "#marquee"], { autoAlpha: 0, duration: 0.4 });
     document.querySelector(".site-header").classList.add("solid");
   },
   onLeaveBack: () => {
     gsap.to(["#canvas-wrap", "#band"], { autoAlpha: 1, duration: 0.4 });
+    // the hide tween left these at opacity 0; at the end of the film the scroll progress doesn't
+    // change, so nothing else would bring the overlay back
+    gsap.killTweensOf(["#dark-overlay", "#marquee"]);
     gsap.set(["#dark-overlay", "#marquee"], { visibility: "visible" });
+    updateOverlay(filmProgress);
+    updateMarquee(filmProgress);
     document.querySelector(".site-header").classList.remove("solid");
   },
 });
